@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+npm run build
+if ! git diff --quiet main.js; then
+  echo "pre-commit: main.js changed after build. Stage the bundle: git add main.js"
+  exit 1
+fi
