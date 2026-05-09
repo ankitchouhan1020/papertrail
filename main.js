@@ -37,6 +37,84 @@ var SEARCH_BODY_MIN_QUERY_LEN = 2;
 var SEARCH_MAX_RESULTS = 200;
 var SEARCH_BODY_SNIPPET_MAX = 240;
 var SEARCH_READ_CONCURRENCY = 8;
+var SNIPPET_BODY_LINE_BUDGET = 3;
+var PT_TITLE_MAX_CLASSES = [
+  "pt-title-wrap--max-1",
+  "pt-title-wrap--max-2",
+  "pt-title-wrap--max-3"
+];
+var PT_EXCERPT_BUDGET_CLASSES = [
+  "pt-excerpt--budget-0",
+  "pt-excerpt--budget-1",
+  "pt-excerpt--budget-2"
+];
+function stripTitleMaxClasses(el) {
+  for (const c of PT_TITLE_MAX_CLASSES) {
+    el.classList.remove(c);
+  }
+}
+function stripExcerptBudgetClasses(el) {
+  for (const c of PT_EXCERPT_BUDGET_CLASSES) {
+    el.classList.remove(c);
+  }
+}
+function countVisualTextLines(el) {
+  if (!(el instanceof HTMLElement)) return 1;
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const rects = range.getClientRects();
+  if (!rects || rects.length === 0) return 1;
+  const tops = /* @__PURE__ */ new Set();
+  for (let i = 0; i < rects.length; i++) {
+    const r = rects[i];
+    if (r.height < 0.5 && r.width < 0.5) continue;
+    tops.add(Math.round(r.top));
+  }
+  return Math.max(1, tops.size);
+}
+function layoutPapertrailSnippetBudget(snippetEl) {
+  var _a;
+  if (!(snippetEl instanceof HTMLElement)) return;
+  const titleWrap = snippetEl.querySelector(".pt-title-wrap");
+  const excerpt = snippetEl.querySelector(".pt-excerpt");
+  if (!(titleWrap instanceof HTMLElement) || !(excerpt instanceof HTMLElement)) {
+    return;
+  }
+  const titleEl = (
+    /** @type {HTMLElement | null} */
+    (_a = titleWrap.querySelector(".pt-title")) != null ? _a : titleWrap
+  );
+  if (excerpt.classList.contains("pt-excerpt--empty")) {
+    stripTitleMaxClasses(titleWrap);
+    stripExcerptBudgetClasses(excerpt);
+    titleWrap.classList.add("pt-title-wrap--max-3");
+    return;
+  }
+  stripTitleMaxClasses(titleWrap);
+  stripExcerptBudgetClasses(excerpt);
+  titleWrap.classList.add("pt-title-wrap--measure");
+  void snippetEl.offsetHeight;
+  const naturalTitleLines = countVisualTextLines(titleEl);
+  titleWrap.classList.remove("pt-title-wrap--measure");
+  const titleSlots = Math.min(SNIPPET_BODY_LINE_BUDGET, naturalTitleLines);
+  const excerptLines = Math.max(0, SNIPPET_BODY_LINE_BUDGET - titleSlots);
+  titleWrap.classList.add(`pt-title-wrap--max-${titleSlots}`);
+  if (excerptLines <= 0) {
+    excerpt.classList.add("pt-excerpt--budget-0");
+  } else if (excerptLines === 1) {
+    excerpt.classList.add("pt-excerpt--budget-1");
+  } else {
+    excerpt.classList.add("pt-excerpt--budget-2");
+  }
+}
+function schedulePapertrailSnippetBudget(snippetEl) {
+  if (!(snippetEl instanceof HTMLElement)) return;
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(
+      () => layoutPapertrailSnippetBudget(snippetEl)
+    );
+  });
+}
 function errorMessage(e) {
   if (e && typeof e === "object" && "message" in e) {
     const m = (
@@ -373,6 +451,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
     this._chromeFooter = null;
     this._chromeDefaultRow = null;
     this._chromeSearchRow = null;
+    this._chromeTitleEl = null;
     this._searchInput = null;
     this._searchMode = false;
     this._searchQuery = "";
@@ -407,6 +486,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
         this.updateActiveRow();
         if (this.plugin.app.workspace.getActiveLeaf() === this.leaf) {
           this.queueScrollActiveIntoView();
+          this.triggerChromeTitleTabTransition();
         }
       })
     );
@@ -504,13 +584,54 @@ var PapertrailView = class extends import_obsidian.ItemView {
       requestAnimationFrame(() => this.scrollActiveNoteIntoView());
     });
   }
+  /** Cmd/Ctrl + ↑/↓ — open previous/next list row (via plugin hotkeys, works while editor is focused). */
+  navigateListByArrow(delta) {
+    var _a;
+    if (!this.scrollEl || delta === 0) return;
+    const items = (
+      /** @type {HTMLElement[]} */
+      Array.from(
+        this.scrollEl.querySelectorAll(".pt-item[data-path]")
+      ).filter((n) => n instanceof HTMLElement && Boolean(n.dataset.path))
+    );
+    if (items.length === 0) return;
+    const active = this.plugin.app.workspace.getActiveFile();
+    let idx = items.findIndex((el) => el.dataset.path === (active == null ? void 0 : active.path));
+    if (idx < 0) {
+      idx = delta > 0 ? 0 : items.length - 1;
+    } else {
+      idx += delta;
+      if (idx < 0 || idx >= items.length) return;
+    }
+    const path = (_a = items[idx]) == null ? void 0 : _a.dataset.path;
+    const file = path ? this.plugin.app.vault.getAbstractFileByPath(path) : null;
+    if (file instanceof import_obsidian.TFile) {
+      void this.plugin.app.workspace.getLeaf(false).openFile(file).then(() => {
+        this.updateActiveRow();
+        requestAnimationFrame(() => this.scrollActiveNoteIntoView());
+      });
+    }
+  }
+  /** Fade/slide the footer title when this sidebar tab becomes active. */
+  triggerChromeTitleTabTransition() {
+    const el = this._chromeTitleEl;
+    if (!(el instanceof HTMLElement)) return;
+    el.classList.remove("pt-chrome-title--tab-in");
+    window.requestAnimationFrame(() => {
+      void el.offsetWidth;
+      el.classList.add("pt-chrome-title--tab-in");
+    });
+  }
   buildChromeFooter() {
     if (!this.contentEl) return;
     const bar = this.contentEl.createDiv({ cls: "pt-chrome-footer" });
     this._chromeFooter = bar;
     const defRow = bar.createDiv({ cls: "pt-chrome-footer-default" });
     this._chromeDefaultRow = defRow;
-    defRow.createSpan({ cls: "pt-chrome-title", text: "Papertrail" });
+    this._chromeTitleEl = defRow.createSpan({
+      cls: "pt-chrome-title",
+      text: "Papertrail"
+    });
     const actions = defRow.createDiv({ cls: "pt-chrome-actions" });
     const searchBtn = actions.createEl("button", {
       cls: "clickable-icon pt-chrome-btn",
@@ -756,10 +877,11 @@ var PapertrailView = class extends import_obsidian.ItemView {
     const row = card.createDiv({ cls: "pt-row" });
     const info = row.createDiv({ cls: "pt-info" });
     const snippet = info.createDiv({ cls: "pt-snippet" });
-    const flow = snippet.createDiv({ cls: "pt-snippet-flow" });
-    const titleSlot = flow.createSpan({ cls: "pt-title-wrap" });
+    const titleSlot = snippet.createSpan({
+      cls: "pt-title-wrap pt-title-wrap--max-3"
+    });
     titleSlot.innerHTML = '<span class="pt-title">' + titleHtml + "</span>";
-    const subtitle = flow.createSpan({ cls: "pt-excerpt" });
+    const subtitle = snippet.createSpan({ cls: "pt-excerpt" });
     const meta = row.createDiv({ cls: "pt-meta" });
     meta.createDiv({
       cls: "pt-date",
@@ -770,6 +892,8 @@ var PapertrailView = class extends import_obsidian.ItemView {
     if (snippetHtml !== null) {
       subtitle.innerHTML = snippetHtml;
       subtitle.classList.toggle("pt-excerpt--empty", false);
+      subtitle.classList.add("pt-excerpt--budget-2");
+      schedulePapertrailSnippetBudget(snippet);
     } else {
       subtitle.classList.add("pt-excerpt--empty");
       subtitle.dataset.ptHighlightSearch = "1";
@@ -799,6 +923,10 @@ var PapertrailView = class extends import_obsidian.ItemView {
     if (!qTrim) {
       el.setText(t);
       el.classList.toggle("pt-excerpt--empty", !t);
+      if (t) {
+        el.classList.add("pt-excerpt--budget-2");
+      }
+      schedulePapertrailSnippetBudget(el.closest(".pt-snippet"));
       return;
     }
     const low = t.toLowerCase();
@@ -809,6 +937,10 @@ var PapertrailView = class extends import_obsidian.ItemView {
       el.innerHTML = highlightFirstSubstringIC(t, qTrim);
     }
     el.classList.toggle("pt-excerpt--empty", !t);
+    if (t) {
+      el.classList.add("pt-excerpt--budget-2");
+    }
+    schedulePapertrailSnippetBudget(el.closest(".pt-snippet"));
   }
   /**
    * @param {TFile} file
@@ -824,10 +956,11 @@ var PapertrailView = class extends import_obsidian.ItemView {
     const row = card.createDiv({ cls: "pt-row" });
     const info = row.createDiv({ cls: "pt-info" });
     const snippet = info.createDiv({ cls: "pt-snippet" });
-    const flow = snippet.createDiv({ cls: "pt-snippet-flow" });
-    const titleSlot = flow.createSpan({ cls: "pt-title-wrap" });
+    const titleSlot = snippet.createSpan({
+      cls: "pt-title-wrap pt-title-wrap--max-3"
+    });
     titleSlot.createSpan({ cls: "pt-title", text: file.basename });
-    const subtitle = flow.createSpan({
+    const subtitle = snippet.createSpan({
       cls: "pt-excerpt pt-excerpt--empty"
     });
     const meta = row.createDiv({ cls: "pt-meta" });
@@ -844,8 +977,12 @@ var PapertrailView = class extends import_obsidian.ItemView {
     if (cached !== void 0) {
       subtitle.setText(cached || "");
       subtitle.classList.toggle("pt-excerpt--empty", !cached);
+      if (cached) {
+        subtitle.classList.add("pt-excerpt--budget-2");
+      }
     }
     this.enqueueExcerptLoad(file, subtitle, req);
+    schedulePapertrailSnippetBudget(snippet);
     return wrap;
   }
   /** @param {TFile} file @param {HTMLElement} subtitleEl @param {string} req */
@@ -894,6 +1031,10 @@ var PapertrailView = class extends import_obsidian.ItemView {
     } else {
       subtitleEl.setText(text || "");
       subtitleEl.classList.toggle("pt-excerpt--empty", !text);
+      if (text) {
+        subtitleEl.classList.add("pt-excerpt--budget-2");
+      }
+      schedulePapertrailSnippetBudget(subtitleEl.closest(".pt-snippet"));
     }
   }
   refreshList() {
@@ -947,6 +1088,9 @@ var PapertrailView = class extends import_obsidian.ItemView {
     this.registerViewEvents();
     this.refreshList();
     this.queueScrollActiveIntoView();
+    if (this.plugin.app.workspace.getActiveLeaf() === this.leaf) {
+      this.triggerChromeTitleTabTransition();
+    }
   }
   async onClose() {
     if (this._debounceTimer != null) {
@@ -964,6 +1108,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
     this._chromeFooter = null;
     this._chromeDefaultRow = null;
     this._chromeSearchRow = null;
+    this._chromeTitleEl = null;
     this._searchInput = null;
   }
 };
@@ -988,6 +1133,17 @@ var PapertrailPlugin = class extends import_obsidian.Plugin {
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
       const v = leaf.view;
       if (v instanceof PapertrailView) v.refreshList();
+    }
+  }
+  /** @param {number} delta */
+  navigatePapertrailList(delta) {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE);
+    for (let i = 0; i < leaves.length; i++) {
+      const v = leaves[i].view;
+      if (v instanceof PapertrailView) {
+        v.navigateListByArrow(delta);
+        return;
+      }
     }
   }
   /**
@@ -1140,6 +1296,22 @@ var PapertrailPlugin = class extends import_obsidian.Plugin {
       icon: PLUGIN_ICON,
       callback: () => {
         void this.activateView();
+      }
+    });
+    this.addCommand({
+      id: "papertrail-list-next",
+      name: "Papertrail: Open next note in list",
+      hotkeys: [{ modifiers: ["Mod"], key: "ArrowDown" }],
+      callback: () => {
+        this.navigatePapertrailList(1);
+      }
+    });
+    this.addCommand({
+      id: "papertrail-list-prev",
+      name: "Papertrail: Open previous note in list",
+      hotkeys: [{ modifiers: ["Mod"], key: "ArrowUp" }],
+      callback: () => {
+        this.navigatePapertrailList(-1);
       }
     });
     this.addRibbonIcon(PLUGIN_ICON, "Papertrail", () => {
