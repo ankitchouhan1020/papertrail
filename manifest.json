@@ -1,7 +1,7 @@
 {
   "id": "papertrail",
   "name": "Papertrail",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "1.5.0",
   "description": "Browse all notes from the sidebar with excerpts, modified dates, search, quick create, and the File Explorer context menu.",
   "author": "Ankit Chouhan",
