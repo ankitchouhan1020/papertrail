@@ -4,6 +4,9 @@ Sidebar list of all markdown notes: title, excerpt, modified date, footer search
 
 Requires **Obsidian 1.5.0** or newer. Source: [github.com/ankitchouhan1020/papertrail](https://github.com/ankitchouhan1020/papertrail).
 
+<img width="1465" height="950" alt="image" src="https://github.com/user-attachments/assets/462106ab-058a-4dcc-9620-f7934233546b" />
+
+
 ## Install
 
 **Community plugins:** Settings → Community plugins → Browse → **Papertrail**.
