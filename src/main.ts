@@ -32,6 +32,83 @@ const SEARCH_BODY_SNIPPET_MAX = 240;
 /** Concurrent body reads during search. */
 const SEARCH_READ_CONCURRENCY = 8;
 
+/** Title + excerpt share this many lines; title is measured first and gets priority. */
+const SNIPPET_BODY_LINE_BUDGET = 3;
+
+const PT_EXCERPT_BUDGET_CLASSES = [
+  "pt-excerpt--budget-0",
+  "pt-excerpt--budget-1",
+  "pt-excerpt--budget-2",
+];
+
+/** @param {HTMLElement} el */
+function stripExcerptBudgetClasses(el) {
+  for (const c of PT_EXCERPT_BUDGET_CLASSES) {
+    el.classList.remove(c);
+  }
+}
+
+/**
+ * Title may use up to SNIPPET_BODY_LINE_BUDGET lines; remaining lines go to the excerpt (or hidden).
+ * @param {HTMLElement | null} snippetEl
+ */
+function layoutPapertrailSnippetBudget(snippetEl) {
+  if (!(snippetEl instanceof HTMLElement)) return;
+  const titleWrap = snippetEl.querySelector(".pt-title-wrap");
+  const excerpt = snippetEl.querySelector(".pt-excerpt");
+  if (!(titleWrap instanceof HTMLElement) || !(excerpt instanceof HTMLElement)) {
+    return;
+  }
+
+  if (excerpt.classList.contains("pt-excerpt--empty")) {
+    stripExcerptBudgetClasses(excerpt);
+    return;
+  }
+
+  const titleInner = /** @type {HTMLElement | null} */ (
+    titleWrap.querySelector(".pt-title")
+  );
+  const lineProbe = titleInner ?? titleWrap;
+  const cs = getComputedStyle(lineProbe);
+  let linePx = parseFloat(cs.lineHeight);
+  if (!Number.isFinite(linePx) || linePx <= 0) {
+    const fs = parseFloat(cs.fontSize);
+    linePx = (Number.isFinite(fs) ? fs : 13) * 1.28;
+  }
+
+  titleWrap.classList.add("pt-title-wrap--measure");
+  void snippetEl.offsetHeight;
+  const fullTitlePx = titleWrap.scrollHeight;
+  titleWrap.classList.remove("pt-title-wrap--measure");
+
+  let titleLines = Math.ceil(fullTitlePx / linePx);
+  if (!Number.isFinite(titleLines) || titleLines < 1) {
+    titleLines = 1;
+  }
+  titleLines = Math.min(SNIPPET_BODY_LINE_BUDGET, titleLines);
+
+  const excerptLines = Math.max(0, SNIPPET_BODY_LINE_BUDGET - titleLines);
+
+  stripExcerptBudgetClasses(excerpt);
+  if (excerptLines <= 0) {
+    excerpt.classList.add("pt-excerpt--budget-0");
+  } else if (excerptLines === 1) {
+    excerpt.classList.add("pt-excerpt--budget-1");
+  } else {
+    excerpt.classList.add("pt-excerpt--budget-2");
+  }
+}
+
+/** @param {HTMLElement | null} snippetEl */
+function schedulePapertrailSnippetBudget(snippetEl) {
+  if (!(snippetEl instanceof HTMLElement)) return;
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() =>
+      layoutPapertrailSnippetBudget(snippetEl)
+    );
+  });
+}
+
 /** @param {unknown} e */
 function errorMessage(e) {
   if (e && typeof e === "object" && "message" in e) {
@@ -920,6 +997,8 @@ class PapertrailView extends ItemView {
     if (snippetHtml !== null) {
       subtitle.innerHTML = snippetHtml;
       subtitle.classList.toggle("pt-excerpt--empty", false);
+      subtitle.classList.add("pt-excerpt--budget-2");
+      schedulePapertrailSnippetBudget(snippet);
     } else {
       subtitle.classList.add("pt-excerpt--empty");
       subtitle.dataset.ptHighlightSearch = "1";
@@ -950,6 +1029,10 @@ class PapertrailView extends ItemView {
     if (!qTrim) {
       el.setText(t);
       el.classList.toggle("pt-excerpt--empty", !t);
+      if (t) {
+        el.classList.add("pt-excerpt--budget-2");
+      }
+      schedulePapertrailSnippetBudget(el.closest(".pt-snippet"));
       return;
     }
     const low = t.toLowerCase();
@@ -960,6 +1043,10 @@ class PapertrailView extends ItemView {
       el.innerHTML = highlightFirstSubstringIC(t, qTrim);
     }
     el.classList.toggle("pt-excerpt--empty", !t);
+    if (t) {
+      el.classList.add("pt-excerpt--budget-2");
+    }
+    schedulePapertrailSnippetBudget(el.closest(".pt-snippet"));
   }
 
   /**
@@ -1001,9 +1088,13 @@ class PapertrailView extends ItemView {
     if (cached !== undefined) {
       subtitle.setText(cached || "");
       subtitle.classList.toggle("pt-excerpt--empty", !cached);
+      if (cached) {
+        subtitle.classList.add("pt-excerpt--budget-2");
+      }
     }
 
     this.enqueueExcerptLoad(file, subtitle, req);
+    schedulePapertrailSnippetBudget(snippet);
     return wrap;
   }
 
@@ -1062,6 +1153,10 @@ class PapertrailView extends ItemView {
     } else {
       subtitleEl.setText(text || "");
       subtitleEl.classList.toggle("pt-excerpt--empty", !text);
+      if (text) {
+        subtitleEl.classList.add("pt-excerpt--budget-2");
+      }
+      schedulePapertrailSnippetBudget(subtitleEl.closest(".pt-snippet"));
     }
   }
 
@@ -1083,12 +1178,37 @@ class PapertrailView extends ItemView {
   async onOpen() {
     this.contentEl.empty();
     this.contentEl.addClass("pt-root");
+    // ItemView content often gets 0 height under themes that don't flex-chain
+    // .workspace-leaf-content → .view-content → contentEl. Inline layout wins.
+    const parent = this.contentEl.parentElement;
+    if (parent instanceof HTMLElement) {
+      parent.style.display = "flex";
+      parent.style.flexDirection = "column";
+      parent.style.flex = "1 1 auto";
+      parent.style.minHeight = "0";
+      parent.style.minWidth = "0";
+      parent.style.overflow = "hidden";
+    }
+    this.contentEl.style.display = "flex";
+    this.contentEl.style.flexDirection = "column";
+    this.contentEl.style.flex = "1 1 auto";
+    this.contentEl.style.minHeight = "0";
+    this.contentEl.style.minWidth = "0";
+    this.contentEl.style.height = "100%";
     this.registerDomEvent(this.contentEl, "click", (e) => this.onRootClick(e));
     this.registerDomEvent(this.contentEl, "contextmenu", (e) =>
       this.onRootContextMenu(e)
     );
     this.scrollEl = this.contentEl.createDiv({ cls: "pt-scroll" });
+    this.scrollEl.style.flex = "1 1 auto";
+    this.scrollEl.style.minHeight = "0";
+    this.scrollEl.style.minWidth = "0";
+    this.scrollEl.style.overflowY = "auto";
+    this.scrollEl.style.overflowX = "hidden";
     this.buildChromeFooter();
+    if (this._chromeFooter instanceof HTMLElement) {
+      this._chromeFooter.style.flexShrink = "0";
+    }
     this.registerViewEvents();
     this.refreshList();
     this.queueScrollActiveIntoView();

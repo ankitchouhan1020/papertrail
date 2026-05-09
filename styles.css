@@ -3,23 +3,23 @@
 .workspace-leaf-content[data-type="papertrail"] {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   padding: 0;
   overflow: hidden;
-  /* Scoped tokens: Obsidian vars for font + colors (theme-agnostic) */
   --pt-row-margin-inline: 0.57em;
   --pt-card-height: 104px;
   --pt-bg: var(--background-primary);
   --pt-bg-hover: var(--background-modifier-hover);
-  --pt-pad-block: 14px;
-  --pt-pad-block-end: 18px;
-  --pt-pad-inline: 16px;
+  --pt-pad-block: 10px;
+  --pt-pad-block-end: 14px;
+  --pt-pad-inline: 12px;
   --pt-active-border-w: 4px;
   --pt-accent: var(--interactive-accent);
   --pt-accent-bar-radius: 4px;
   --pt-card-end-radius: 4px;
   --pt-font-scale: 0.92;
-  /* UI tier sizes: https://docs.obsidian.md/Reference/CSS+variables/Foundations/Typography */
   --pt-title-size: calc(
     var(--font-ui-medium, 15px) * var(--pt-font-scale)
   );
@@ -31,29 +31,37 @@
   --pt-excerpt-weight: 400;
   --pt-excerpt-lh: 1.45;
   --pt-excerpt-color: color-mix(in srgb, var(--text-muted) 82%, var(--background-primary));
-  --pt-snippet-lines: 3;
   --pt-date-size: calc(
     var(--font-ui-smaller, 12px) * var(--pt-font-scale)
   );
-  --pt-date-pad-top: 6px;
   --pt-date-color: color-mix(in srgb, var(--text-faint) 72%, var(--background-primary));
-  --pt-date-lh: 1.35;
-  --pt-block-gap: 0.38em;
+  --pt-date-lh: 1.3;
+  --pt-block-gap: 0.2em;
+  --pt-scroll-edge-pad: 12px;
   --pt-heading-font: var(
     --font-interface-theme,
     ui-sans-serif,
     system-ui,
     sans-serif
   );
-  --pt-border: var(--background-modifier-border);
+  --pt-divider: color-mix(
+    in srgb,
+    var(--text-normal) 11%,
+    var(--background-modifier-border, var(--background-primary))
+  );
   background-color: var(--background-primary);
   border-radius: 0;
 }
 
 .workspace-leaf-content[data-type="papertrail"] .view-content {
   padding: 0;
-  overflow: hidden;
   border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-root {
@@ -61,8 +69,10 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+  height: 100%;
+  max-height: 100%;
   border-radius: 0;
-  /* Same stack as file explorer / settings: --font-interface-theme */
   font-family: var(
     --font-interface-theme,
     ui-sans-serif,
@@ -75,19 +85,21 @@
 .workspace-leaf-content[data-type="papertrail"] .pt-scroll {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   border-radius: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 0;
+  padding-top: var(--pt-scroll-edge-pad);
+  padding-bottom: var(--pt-scroll-edge-pad);
 }
 
-/* Bottom chrome: title + actions, or full-width search row — minimal bar, no panel fill */
+/* Bottom chrome (title / search). */
 .workspace-leaf-content[data-type="papertrail"] .pt-chrome-footer {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-top: 1px solid var(--background-modifier-border);
+  border-top: 1px solid var(--pt-divider);
   background-color: transparent;
   padding: 0.55em 0.75em 0.65em;
   box-sizing: border-box;
@@ -183,8 +195,8 @@
   display: inline;
 }
 
-/* Modal content mounts on `document.body`, not under the papertrail leaf */
-.pt-rename-modal-actions {
+/* Rename modal actions (Modal is under body). */
+.modal .pt-rename-modal-actions {
   display: flex;
   flex-direction: row;
   justify-content: flex-end;
@@ -192,23 +204,26 @@
   margin-top: 0.75rem;
 }
 
+/* List row: fixed height; grid card pins meta (date) to bottom of .pt-row */
+
 .workspace-leaf-content[data-type="papertrail"] .pt-card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: 100%;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   width: 100%;
-  height: 100%;
   overflow: hidden;
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-card .pt-row {
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--pt-block-gap);
-  flex: 1 1 auto;
+  gap: 0;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
   width: 100%;
@@ -216,40 +231,76 @@
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-info {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   min-height: 0;
+  margin-bottom: var(--pt-block-gap);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-/* Title + excerpt share one 3-line budget; long titles crowd out description */
+/* Title + excerpt: 3-line shared budget (split in JS). */
 .workspace-leaf-content[data-type="papertrail"] .pt-snippet {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: var(--pt-snippet-lines);
-  line-clamp: var(--pt-snippet-lines);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  flex-direction: column;
+  gap: 0.26em;
   min-width: 0;
   min-height: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
   word-break: break-word;
 }
 
-.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-title-wrap,
-.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt {
-  display: block;
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-title-wrap {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  max-height: calc(3 * var(--pt-title-lh) * var(--pt-title-size));
+  word-break: break-word;
 }
 
-.workspace-leaf-content[data-type="papertrail"] .pt-excerpt {
-  margin: 0.18em 0 0;
+.workspace-leaf-content[data-type="papertrail"]
+  .pt-snippet
+  .pt-title-wrap.pt-title-wrap--measure {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  -webkit-box-orient: unset;
+  overflow: visible;
+  max-height: none;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt {
+  margin: 0;
   padding: 0;
   font-size: var(--pt-excerpt-size);
   font-weight: var(--pt-excerpt-weight);
   line-height: var(--pt-excerpt-lh);
+  color: var(--text-muted);
   color: var(--pt-excerpt-color);
   white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt.pt-excerpt--budget-0 {
+  display: none !important;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt.pt-excerpt--budget-1 {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  max-height: calc(var(--pt-excerpt-lh) * 1em);
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt.pt-excerpt--budget-2 {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-height: calc(2 * var(--pt-excerpt-lh) * 1em);
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-excerpt.pt-excerpt--empty {
@@ -258,18 +309,19 @@
 
 .workspace-leaf-content[data-type="papertrail"] .pt-meta {
   flex: 0 0 auto;
-  flex-shrink: 0;
   width: 100%;
   text-align: left;
+  margin-top: auto;
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-date {
   margin: 0;
-  padding: var(--pt-date-pad-top) 0 0;
+  padding: 0;
   font-size: var(--pt-date-size);
   font-weight: 400;
   line-height: var(--pt-date-lh);
-  min-height: calc(var(--pt-date-lh) * 1em);
+  min-height: 0;
+  color: var(--text-muted);
   color: var(--pt-date-color);
   white-space: nowrap;
   overflow: hidden;
@@ -279,9 +331,9 @@
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-footer {
+  grid-row: 2;
   flex: 0 0 auto;
-  margin-top: 0.35rem;
-  /* Bleed to .pt-item edges: line spans full card width and sits on the bottom padding line */
+  margin-top: 0.12rem;
   margin-inline: calc(-1 * var(--pt-pad-inline));
   margin-bottom: calc(-1 * var(--pt-pad-block-end));
   width: calc(100% + 2 * var(--pt-pad-inline));
@@ -289,25 +341,27 @@
   box-sizing: border-box;
 }
 
-/* 1px fill (not border-top) avoids WebKit hairlines when “off” vs rounded cards */
 .workspace-leaf-content[data-type="papertrail"] .pt-footer-sep {
   display: block;
   width: 100%;
   height: 1px;
+  min-height: 1px;
   flex-shrink: 0;
   border: 0;
   margin: 0;
   padding: 0;
-  background-color: var(--pt-border);
+  background-color: var(--pt-divider);
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-title-wrap .pt-title {
+  display: inline;
   font-family: var(--pt-heading-font);
   font-weight: var(--pt-title-weight);
   font-synthesis: none;
   font-size: var(--pt-title-size);
   line-height: var(--pt-title-lh);
   letter-spacing: var(--pt-title-tracking);
+  color: var(--text-normal);
   color: var(--pt-title-color);
 }
 
@@ -343,7 +397,6 @@
   border-bottom-left-radius: var(--pt-accent-bar-radius);
 }
 
-/* Collapse rule entirely (no transparent border — those still paint ~1px in WebKit) */
 .workspace-leaf-content[data-type="papertrail"] .pt-item.is-active .pt-footer-sep {
   height: 0;
   min-height: 0;
