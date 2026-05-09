@@ -37,66 +37,6 @@ var SEARCH_BODY_MIN_QUERY_LEN = 2;
 var SEARCH_MAX_RESULTS = 200;
 var SEARCH_BODY_SNIPPET_MAX = 240;
 var SEARCH_READ_CONCURRENCY = 8;
-var SNIPPET_BODY_LINE_BUDGET = 3;
-var PT_EXCERPT_BUDGET_CLASSES = [
-  "pt-excerpt--budget-0",
-  "pt-excerpt--budget-1",
-  "pt-excerpt--budget-2"
-];
-function stripExcerptBudgetClasses(el) {
-  for (const c of PT_EXCERPT_BUDGET_CLASSES) {
-    el.classList.remove(c);
-  }
-}
-function layoutPapertrailSnippetBudget(snippetEl) {
-  if (!(snippetEl instanceof HTMLElement)) return;
-  const titleWrap = snippetEl.querySelector(".pt-title-wrap");
-  const excerpt = snippetEl.querySelector(".pt-excerpt");
-  if (!(titleWrap instanceof HTMLElement) || !(excerpt instanceof HTMLElement)) {
-    return;
-  }
-  if (excerpt.classList.contains("pt-excerpt--empty")) {
-    stripExcerptBudgetClasses(excerpt);
-    return;
-  }
-  const titleInner = (
-    /** @type {HTMLElement | null} */
-    titleWrap.querySelector(".pt-title")
-  );
-  const lineProbe = titleInner != null ? titleInner : titleWrap;
-  const cs = getComputedStyle(lineProbe);
-  let linePx = parseFloat(cs.lineHeight);
-  if (!Number.isFinite(linePx) || linePx <= 0) {
-    const fs = parseFloat(cs.fontSize);
-    linePx = (Number.isFinite(fs) ? fs : 13) * 1.28;
-  }
-  titleWrap.classList.add("pt-title-wrap--measure");
-  void snippetEl.offsetHeight;
-  const fullTitlePx = titleWrap.scrollHeight;
-  titleWrap.classList.remove("pt-title-wrap--measure");
-  let titleLines = Math.ceil(fullTitlePx / linePx);
-  if (!Number.isFinite(titleLines) || titleLines < 1) {
-    titleLines = 1;
-  }
-  titleLines = Math.min(SNIPPET_BODY_LINE_BUDGET, titleLines);
-  const excerptLines = Math.max(0, SNIPPET_BODY_LINE_BUDGET - titleLines);
-  stripExcerptBudgetClasses(excerpt);
-  if (excerptLines <= 0) {
-    excerpt.classList.add("pt-excerpt--budget-0");
-  } else if (excerptLines === 1) {
-    excerpt.classList.add("pt-excerpt--budget-1");
-  } else {
-    excerpt.classList.add("pt-excerpt--budget-2");
-  }
-}
-function schedulePapertrailSnippetBudget(snippetEl) {
-  if (!(snippetEl instanceof HTMLElement)) return;
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(
-      () => layoutPapertrailSnippetBudget(snippetEl)
-    );
-  });
-}
 function errorMessage(e) {
   if (e && typeof e === "object" && "message" in e) {
     const m = (
@@ -816,9 +756,10 @@ var PapertrailView = class extends import_obsidian.ItemView {
     const row = card.createDiv({ cls: "pt-row" });
     const info = row.createDiv({ cls: "pt-info" });
     const snippet = info.createDiv({ cls: "pt-snippet" });
-    const titleSlot = snippet.createSpan({ cls: "pt-title-wrap" });
+    const flow = snippet.createDiv({ cls: "pt-snippet-flow" });
+    const titleSlot = flow.createSpan({ cls: "pt-title-wrap" });
     titleSlot.innerHTML = '<span class="pt-title">' + titleHtml + "</span>";
-    const subtitle = snippet.createSpan({ cls: "pt-excerpt" });
+    const subtitle = flow.createSpan({ cls: "pt-excerpt" });
     const meta = row.createDiv({ cls: "pt-meta" });
     meta.createDiv({
       cls: "pt-date",
@@ -829,8 +770,6 @@ var PapertrailView = class extends import_obsidian.ItemView {
     if (snippetHtml !== null) {
       subtitle.innerHTML = snippetHtml;
       subtitle.classList.toggle("pt-excerpt--empty", false);
-      subtitle.classList.add("pt-excerpt--budget-2");
-      schedulePapertrailSnippetBudget(snippet);
     } else {
       subtitle.classList.add("pt-excerpt--empty");
       subtitle.dataset.ptHighlightSearch = "1";
@@ -860,10 +799,6 @@ var PapertrailView = class extends import_obsidian.ItemView {
     if (!qTrim) {
       el.setText(t);
       el.classList.toggle("pt-excerpt--empty", !t);
-      if (t) {
-        el.classList.add("pt-excerpt--budget-2");
-      }
-      schedulePapertrailSnippetBudget(el.closest(".pt-snippet"));
       return;
     }
     const low = t.toLowerCase();
@@ -874,10 +809,6 @@ var PapertrailView = class extends import_obsidian.ItemView {
       el.innerHTML = highlightFirstSubstringIC(t, qTrim);
     }
     el.classList.toggle("pt-excerpt--empty", !t);
-    if (t) {
-      el.classList.add("pt-excerpt--budget-2");
-    }
-    schedulePapertrailSnippetBudget(el.closest(".pt-snippet"));
   }
   /**
    * @param {TFile} file
@@ -893,9 +824,10 @@ var PapertrailView = class extends import_obsidian.ItemView {
     const row = card.createDiv({ cls: "pt-row" });
     const info = row.createDiv({ cls: "pt-info" });
     const snippet = info.createDiv({ cls: "pt-snippet" });
-    const titleSlot = snippet.createSpan({ cls: "pt-title-wrap" });
+    const flow = snippet.createDiv({ cls: "pt-snippet-flow" });
+    const titleSlot = flow.createSpan({ cls: "pt-title-wrap" });
     titleSlot.createSpan({ cls: "pt-title", text: file.basename });
-    const subtitle = snippet.createSpan({
+    const subtitle = flow.createSpan({
       cls: "pt-excerpt pt-excerpt--empty"
     });
     const meta = row.createDiv({ cls: "pt-meta" });
@@ -912,12 +844,8 @@ var PapertrailView = class extends import_obsidian.ItemView {
     if (cached !== void 0) {
       subtitle.setText(cached || "");
       subtitle.classList.toggle("pt-excerpt--empty", !cached);
-      if (cached) {
-        subtitle.classList.add("pt-excerpt--budget-2");
-      }
     }
     this.enqueueExcerptLoad(file, subtitle, req);
-    schedulePapertrailSnippetBudget(snippet);
     return wrap;
   }
   /** @param {TFile} file @param {HTMLElement} subtitleEl @param {string} req */
@@ -966,10 +894,6 @@ var PapertrailView = class extends import_obsidian.ItemView {
     } else {
       subtitleEl.setText(text || "");
       subtitleEl.classList.toggle("pt-excerpt--empty", !text);
-      if (text) {
-        subtitleEl.classList.add("pt-excerpt--budget-2");
-      }
-      schedulePapertrailSnippetBudget(subtitleEl.closest(".pt-snippet"));
     }
   }
   refreshList() {

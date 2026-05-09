@@ -31,6 +31,11 @@
   --pt-excerpt-weight: 400;
   --pt-excerpt-lh: 1.45;
   --pt-excerpt-color: color-mix(in srgb, var(--text-muted) 82%, var(--background-primary));
+  /* Worst-case line box height for title vs excerpt (3-line clamp + max-height guard). */
+  --pt-snippet-line-h: max(
+    calc(var(--pt-title-lh) * var(--pt-title-size)),
+    calc(var(--pt-excerpt-lh) * 1em)
+  );
   --pt-date-size: calc(
     var(--font-ui-smaller, 12px) * var(--pt-font-scale)
   );
@@ -240,11 +245,11 @@
   flex-direction: column;
 }
 
-/* Title + excerpt: 3-line shared budget (split in JS). */
+/* Title + excerpt: one flow, max 3 lines total (title first in DOM → reads first / wraps first). */
 .workspace-leaf-content[data-type="papertrail"] .pt-snippet {
   display: flex;
   flex-direction: column;
-  gap: 0.26em;
+  gap: 0;
   min-width: 0;
   min-height: 0;
   flex: 0 1 auto;
@@ -252,59 +257,39 @@
   word-break: break-word;
 }
 
-.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-title-wrap {
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet-flow {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   line-clamp: 3;
   overflow: hidden;
-  max-height: calc(3 * var(--pt-title-lh) * var(--pt-title-size));
+  word-break: break-word;
+  min-width: 0;
+  /* Hard cap so a 4th line cannot peek through if clamp/line-height drift (e.g. mobile). */
+  max-height: calc(3 * var(--pt-snippet-line-h));
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-title-wrap {
+  display: inline;
   word-break: break-word;
 }
 
-.workspace-leaf-content[data-type="papertrail"]
-  .pt-snippet
-  .pt-title-wrap.pt-title-wrap--measure {
-  display: block;
-  -webkit-line-clamp: unset;
-  line-clamp: unset;
-  -webkit-box-orient: unset;
-  overflow: visible;
-  max-height: none;
-}
-
 .workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt {
+  display: inline;
   margin: 0;
   padding: 0;
+  margin-inline-start: 0.26em;
   font-size: var(--pt-excerpt-size);
   font-weight: var(--pt-excerpt-weight);
   line-height: var(--pt-excerpt-lh);
   color: var(--text-muted);
   color: var(--pt-excerpt-color);
   white-space: normal;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
-.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt.pt-excerpt--budget-0 {
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt.pt-excerpt--empty {
   display: none !important;
-}
-
-.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt.pt-excerpt--budget-1 {
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  max-height: calc(var(--pt-excerpt-lh) * 1em);
-}
-
-.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt.pt-excerpt--budget-2 {
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  max-height: calc(2 * var(--pt-excerpt-lh) * 1em);
-}
-
-.workspace-leaf-content[data-type="papertrail"] .pt-excerpt.pt-excerpt--empty {
-  display: none !important;
+  margin-inline-start: 0;
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-meta {
