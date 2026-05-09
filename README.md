@@ -1,22 +1,35 @@
 # Papertrail
 
-Sidebar list of all markdown notes: title, excerpt, modified date, footer search and new note, and a right-click file menu consistent with the File Explorer.
+**Browse every markdown note from the sidebar** — compact cards with title, excerpt, and modified date; a footer with search and quick-create; and a **right‑click menu** aligned with the File Explorer.
 
-Requires **Obsidian 1.5.0** or newer. Source: [github.com/ankitchouhan1020/papertrail](https://github.com/ankitchouhan1020/papertrail).
+Requires **Obsidian 1.5.0+**.  
+Repository: [github.com/ankitchouhan1020/papertrail](https://github.com/ankitchouhan1020/papertrail)
+
+---
+
+<p align="center">
+  <img src="docs/product-demo.png" alt="Papertrail in Obsidian: sidebar list of note cards with excerpts and dates, footer search, and open note with search highlights in the editor" width="1000" />
+</p>
+
+<p align="center">
+  <em>List, search, and jump — without leaving the sidebar rhythm of your vault.</em>
+</p>
+
+---
 
 ## Install
 
-**Community plugins:** Settings → Community plugins → Browse → **Papertrail**.
-
-**Manual:** From [Releases](https://github.com/ankitchouhan1020/papertrail/releases), download `main.js`, `manifest.json`, and `styles.css` into `<Vault>/.obsidian/plugins/papertrail/`, then enable the plugin.
-
-**BRAT:** Add `ankitchouhan1020/papertrail`.
+| Channel | How |
+|--------|-----|
+| **Community plugins** | Settings → Community plugins → Browse → **Papertrail** |
+| **Manual** | From [Releases](https://github.com/ankitchouhan1020/papertrail/releases), put `main.js`, `manifest.json`, and `styles.css` in `<Vault>/.obsidian/plugins/papertrail/`, then enable the plugin |
+| **BRAT** | Add `ankitchouhan1020/papertrail` |
 
 ## Usage
 
-- **Ribbon** or command **Open Papertrail** — open or focus the sidebar view.
-- **Footer** — search; **+** creates a note in the vault default location.
-- **Right-click a row** — open in new tab, rename, delete, reveal in navigation when available, plus other **file menu** items from plugins.
+- **Ribbon / command “Open Papertrail”** — open or focus the view.
+- **Footer** — filter the list; **+** creates a note in the vault’s default location.
+- **Right‑click a row** — open in new tab, rename, delete, reveal in navigation when available, plus other **file menu** entries from Obsidian and plugins.
 
 ## Settings
 
@@ -27,18 +40,18 @@ Requires **Obsidian 1.5.0** or newer. Source: [github.com/ankitchouhan1020/paper
 
 ## Development
 
-Follow Obsidian’s [**Build a plugin**](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin) guide: use a **dedicated dev vault**, not your main notes.
+Use Obsidian’s [**Build a plugin**](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin) flow with a **dev vault**, not your primary notes.
 
-1. Clone this repo into `<dev-vault>/.obsidian/plugins/papertrail/`.
-2. `npm install`
-3. `npm run dev` — watches `src/main.ts` and rebuilds `main.js` on change.
-4. Enable Papertrail under Community plugins and reload when files change (or use [Hot-Reload](https://github.com/pjeby/hot-reload)).
+1. Clone into `<dev-vault>/.obsidian/plugins/papertrail/`.
+2. `npm install` (installs Git hooks via `prepare`; pre-commit runs `npm run build`).
+3. `npm run dev` — watch `src/main.ts` and rebuild `main.js` on change.
+4. Enable Papertrail and reload when files change (or use [Hot-Reload](https://github.com/pjeby/hot-reload)).
 
-Production bundle: `npm run build` (runs `tsc` then esbuild). **Edit `src/main.ts` only** — root `main.js` is generated.
+Production bundle: `npm run build`. **Edit `src/main.ts` only** — root `main.js` is generated.
 
 ## Releasing
 
-See [COMMUNITY_PLUGIN_CHECKLIST.md](COMMUNITY_PLUGIN_CHECKLIST.md). Bump versions in `manifest.json` / `versions.json`, then tag a GitHub release with `main.js`, `manifest.json`, and `styles.css`.
+See [COMMUNITY_PLUGIN_CHECKLIST.md](COMMUNITY_PLUGIN_CHECKLIST.md). Bump versions in `manifest.json` / `versions.json`, tag a GitHub release with `main.js`, `manifest.json`, and `styles.css`.
 
 ## License
 
