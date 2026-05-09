@@ -1,0 +1,4 @@
+# Per-vault settings (do not ship in releases or open-source repo)
+data.json
+
+.DS_Store

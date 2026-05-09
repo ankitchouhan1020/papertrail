@@ -1,0 +1,364 @@
+/* Papertrail — flat vault note list; scoped to this view */
+
+.workspace-leaf-content[data-type="papertrail"] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Scoped tokens: Obsidian vars for font + colors (theme-agnostic) */
+  --pt-row-margin-inline: 0.57em;
+  --pt-card-height: 104px;
+  --pt-bg: var(--background-primary);
+  --pt-bg-hover: var(--background-modifier-hover);
+  --pt-pad-block: 14px;
+  --pt-pad-block-end: 18px;
+  --pt-pad-inline: 16px;
+  --pt-active-border-w: 4px;
+  --pt-accent: var(--interactive-accent);
+  --pt-accent-bar-radius: 4px;
+  --pt-card-end-radius: 4px;
+  --pt-font-scale: 0.92;
+  /* UI tier sizes: https://docs.obsidian.md/Reference/CSS+variables/Foundations/Typography */
+  --pt-title-size: calc(
+    var(--font-ui-medium, 15px) * var(--pt-font-scale)
+  );
+  --pt-title-weight: 600;
+  --pt-title-lh: 1.28;
+  --pt-title-tracking: normal;
+  --pt-title-color: color-mix(in srgb, var(--text-normal) 88%, var(--background-primary));
+  --pt-excerpt-size: 1em;
+  --pt-excerpt-weight: 400;
+  --pt-excerpt-lh: 1.45;
+  --pt-excerpt-color: color-mix(in srgb, var(--text-muted) 82%, var(--background-primary));
+  --pt-snippet-lines: 3;
+  --pt-date-size: calc(
+    var(--font-ui-smaller, 12px) * var(--pt-font-scale)
+  );
+  --pt-date-pad-top: 6px;
+  --pt-date-color: color-mix(in srgb, var(--text-faint) 72%, var(--background-primary));
+  --pt-date-lh: 1.35;
+  --pt-block-gap: 0.38em;
+  --pt-heading-font: var(
+    --font-interface-theme,
+    ui-sans-serif,
+    system-ui,
+    sans-serif
+  );
+  --pt-border: var(--background-modifier-border);
+  background-color: var(--background-primary);
+  border-radius: 0;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .view-content {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: 0;
+  /* Same stack as file explorer / settings: --font-interface-theme */
+  font-family: var(
+    --font-interface-theme,
+    ui-sans-serif,
+    system-ui,
+    sans-serif
+  );
+  font-size: calc(var(--font-ui-small, 13px) * var(--pt-font-scale));
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 0;
+}
+
+/* Bottom chrome: title + actions, or full-width search row — minimal bar, no panel fill */
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-top: 1px solid var(--background-modifier-border);
+  background-color: transparent;
+  padding: 0.55em 0.75em 0.65em;
+  box-sizing: border-box;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-footer-default {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  min-height: 2rem;
+  min-width: 0;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-title {
+  font-size: var(--font-ui-small, 13px);
+  font-weight: 600;
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.15em;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-btn {
+  flex: 0 0 auto;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-footer-search {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35em;
+  min-height: 2rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-search-lead {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  padding: 0 0.15em;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0.35em 0.5em;
+  font-size: var(--font-ui-smaller, 12px);
+  font-family: inherit;
+  color: var(--text-normal);
+  background-color: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 0.35rem;
+  box-sizing: border-box;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-search-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-chrome-search-clear {
+  flex: 0 0 auto;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-search-mark {
+  background-color: var(
+    --text-highlight-bg,
+    color-mix(in srgb, var(--text-accent, var(--text-normal)) 22%, transparent)
+  );
+  color: inherit;
+  padding: 0 0.06em;
+  border-radius: 0.12em;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-title .pt-search-mark,
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt .pt-search-mark {
+  display: inline;
+}
+
+/* Modal content mounts on `document.body`, not under the papertrail leaf */
+.pt-rename-modal-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-card .pt-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--pt-block-gap);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Title + excerpt share one 3-line budget; long titles crowd out description */
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--pt-snippet-lines);
+  line-clamp: var(--pt-snippet-lines);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  min-height: 0;
+  word-break: break-word;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-title-wrap,
+.workspace-leaf-content[data-type="papertrail"] .pt-snippet .pt-excerpt {
+  display: block;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-excerpt {
+  margin: 0.18em 0 0;
+  padding: 0;
+  font-size: var(--pt-excerpt-size);
+  font-weight: var(--pt-excerpt-weight);
+  line-height: var(--pt-excerpt-lh);
+  color: var(--pt-excerpt-color);
+  white-space: normal;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-excerpt.pt-excerpt--empty {
+  display: none !important;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-meta {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  width: 100%;
+  text-align: left;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-date {
+  margin: 0;
+  padding: var(--pt-date-pad-top) 0 0;
+  font-size: var(--pt-date-size);
+  font-weight: 400;
+  line-height: var(--pt-date-lh);
+  min-height: calc(var(--pt-date-lh) * 1em);
+  color: var(--pt-date-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-footer {
+  flex: 0 0 auto;
+  margin-top: 0.35rem;
+  /* Bleed to .pt-item edges: line spans full card width and sits on the bottom padding line */
+  margin-inline: calc(-1 * var(--pt-pad-inline));
+  margin-bottom: calc(-1 * var(--pt-pad-block-end));
+  width: calc(100% + 2 * var(--pt-pad-inline));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* 1px fill (not border-top) avoids WebKit hairlines when “off” vs rounded cards */
+.workspace-leaf-content[data-type="papertrail"] .pt-footer-sep {
+  display: block;
+  width: 100%;
+  height: 1px;
+  flex-shrink: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background-color: var(--pt-border);
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-title-wrap .pt-title {
+  font-family: var(--pt-heading-font);
+  font-weight: var(--pt-title-weight);
+  font-synthesis: none;
+  font-size: var(--pt-title-size);
+  line-height: var(--pt-title-lh);
+  letter-spacing: var(--pt-title-tracking);
+  color: var(--pt-title-color);
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-item {
+  cursor: var(--cursor);
+  margin-block: 0;
+  margin-inline: var(--pt-row-margin-inline);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: var(--pt-card-height);
+  min-height: var(--pt-card-height);
+  max-height: var(--pt-card-height);
+  flex-shrink: 0;
+  border-top-right-radius: var(--pt-card-end-radius);
+  border-bottom-right-radius: var(--pt-card-end-radius);
+  border-left: var(--pt-active-border-w) solid transparent;
+  background-color: var(--pt-bg);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding-top: var(--pt-pad-block);
+  padding-bottom: var(--pt-pad-block-end);
+  padding-inline: var(--pt-pad-inline);
+  transition: background-color 0.08s ease, border-left-color 0.08s ease,
+    border-radius 0.08s ease;
+}
+
+.workspace-leaf-content[data-type="papertrail"] .pt-item.is-active {
+  background-color: var(--pt-bg-hover);
+  border-left-color: var(--pt-accent);
+  border-top-left-radius: var(--pt-accent-bar-radius);
+  border-bottom-left-radius: var(--pt-accent-bar-radius);
+}
+
+/* Collapse rule entirely (no transparent border — those still paint ~1px in WebKit) */
+.workspace-leaf-content[data-type="papertrail"] .pt-item.is-active .pt-footer-sep {
+  height: 0;
+  min-height: 0;
+  background-color: transparent;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.workspace-leaf-content[data-type="papertrail"]
+  .pt-scroll
+  > .pt-item:has(+ .pt-item.is-active)
+  .pt-footer-sep {
+  height: 0;
+  min-height: 0;
+  background-color: transparent;
+  overflow: hidden;
+  pointer-events: none;
+}
