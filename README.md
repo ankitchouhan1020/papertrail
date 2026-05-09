@@ -21,7 +21,6 @@ Repository: [github.com/ankitchouhan1020/papertrail](https://github.com/ankitcho
 
 | Channel | How |
 |--------|-----|
-| **Community plugins** | Settings → Community plugins → Browse → **Papertrail** |
 | **Manual** | From [Releases](https://github.com/ankitchouhan1020/papertrail/releases), put `main.js`, `manifest.json`, and `styles.css` in `<Vault>/.obsidian/plugins/papertrail/`, then enable the plugin |
 | **BRAT** | Add `ankitchouhan1020/papertrail` |
 
