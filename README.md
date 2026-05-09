@@ -8,11 +8,11 @@ Repository: [github.com/ankitchouhan1020/papertrail](https://github.com/ankitcho
 ---
 
 <p align="center">
-  <img src="docs/product-demo.png" alt="Papertrail in Obsidian: sidebar list of note cards with excerpts and dates, footer search, and open note with search highlights in the editor" width="1000" />
+  <img src="docs/product-demo.png" alt="Obsidian with Papertrail: note list in the sidebar (titles, excerpts, dates, active row with accent bar), Papertrail footer, and the open note with properties in the editor" width="1000" />
 </p>
 
 <p align="center">
-  <em>List, search, and jump — without leaving the sidebar rhythm of your vault.</em>
+  <em>Sidebar list beside the editor — pick a note, open it, keep context.</em>
 </p>
 
 ---
