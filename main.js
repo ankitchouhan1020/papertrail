@@ -190,8 +190,16 @@ function excerptFromMarkdown(raw) {
   }
   return text;
 }
-function escapeHtml(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function applyHighlightSegmentsTo(el, segments) {
+  el.empty();
+  for (const seg of segments) {
+    if (!seg.text) continue;
+    if (seg.kind === "mark") {
+      el.createEl("mark", { cls: "pt-search-mark", text: seg.text });
+    } else {
+      el.appendChild(document.createTextNode(seg.text));
+    }
+  }
 }
 function fuzzyOrderedIndices(queryLower, textLower) {
   if (!queryLower.length) return [];
@@ -227,25 +235,39 @@ function indicesToRanges(indices) {
   ranges.push([s, e]);
   return ranges;
 }
-function highlightFuzzyInOriginal(original, indices) {
+function highlightFuzzySegments(original, indices) {
   const ranges = indicesToRanges(indices);
-  let out = "";
+  const segs = [];
   let last = 0;
   for (const [a, b] of ranges) {
-    out += escapeHtml(original.slice(last, a));
-    out += '<mark class="pt-search-mark">' + escapeHtml(original.slice(a, b)) + "</mark>";
+    if (a > last) {
+      segs.push({ kind: "plain", text: original.slice(last, a) });
+    }
+    segs.push({ kind: "mark", text: original.slice(a, b) });
     last = b;
   }
-  out += escapeHtml(original.slice(last));
-  return out;
+  if (last < original.length) {
+    segs.push({ kind: "plain", text: original.slice(last) });
+  }
+  return segs;
 }
-function highlightFirstSubstringIC(original, needle) {
-  if (!needle) return escapeHtml(original);
+function highlightSubstringICSegments(original, needle) {
+  if (!needle) return [{ kind: "plain", text: original }];
   const lower = original.toLowerCase();
   const nl = needle.toLowerCase();
   const idx = lower.indexOf(nl);
-  if (idx < 0) return escapeHtml(original);
-  return escapeHtml(original.slice(0, idx)) + '<mark class="pt-search-mark">' + escapeHtml(original.slice(idx, idx + needle.length)) + "</mark>" + escapeHtml(original.slice(idx + needle.length));
+  if (idx < 0) return [{ kind: "plain", text: original }];
+  const segs = [];
+  if (idx > 0) segs.push({ kind: "plain", text: original.slice(0, idx) });
+  segs.push({
+    kind: "mark",
+    text: original.slice(idx, idx + needle.length)
+  });
+  const tail = idx + needle.length;
+  if (tail < original.length) {
+    segs.push({ kind: "plain", text: original.slice(tail) });
+  }
+  return segs;
 }
 function plainTextForSearch(raw) {
   let s = raw.replace(/^\uFEFF?/, "");
@@ -256,8 +278,15 @@ function plainTextForSearch(raw) {
   }
   return s.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
 }
-function snippetAroundMatch(plain, needle) {
-  if (!needle) return { html: escapeHtml(plain.slice(0, SEARCH_BODY_SNIPPET_MAX)), found: false };
+function snippetSegmentsAroundMatch(plain, needle) {
+  if (!needle) {
+    return {
+      segments: [
+        { kind: "plain", text: plain.slice(0, SEARCH_BODY_SNIPPET_MAX) }
+      ],
+      found: false
+    };
+  }
   const lower = plain.toLowerCase();
   const nl = needle.toLowerCase();
   const idx = lower.indexOf(nl);
@@ -268,17 +297,23 @@ function snippetAroundMatch(plain, needle) {
     plain.length,
     Math.max(idx + needle.length + pad, start + SEARCH_BODY_SNIPPET_MAX)
   );
-  let chunk = plain.slice(start, end);
+  const chunk = plain.slice(start, end);
   const relIdx = idx - start;
   const prefix = start > 0 ? "\u2026" : "";
   const suffix = end < plain.length ? "\u2026" : "";
-  const before = escapeHtml(chunk.slice(0, relIdx));
-  const mid = escapeHtml(chunk.slice(relIdx, relIdx + needle.length));
-  const after = escapeHtml(chunk.slice(relIdx + needle.length));
-  return {
-    html: prefix + before + '<mark class="pt-search-mark">' + mid + "</mark>" + after + suffix,
-    found: true
-  };
+  const segs = [];
+  if (prefix) segs.push({ kind: "plain", text: prefix });
+  if (relIdx > 0) segs.push({ kind: "plain", text: chunk.slice(0, relIdx) });
+  segs.push({
+    kind: "mark",
+    text: chunk.slice(relIdx, relIdx + needle.length)
+  });
+  const tailStart = relIdx + needle.length;
+  if (tailStart < chunk.length) {
+    segs.push({ kind: "plain", text: chunk.slice(tailStart) });
+  }
+  if (suffix) segs.push({ kind: "plain", text: suffix });
+  return { segments: segs, found: true };
 }
 function pathHasDotSegment(normPath) {
   const parts = normPath.split("/");
@@ -334,7 +369,7 @@ var PapertrailRenameModal = class extends import_obsidian.Modal {
       text: "New file name (keep the extension, e.g. .md)."
     });
     const tc = new import_obsidian.TextComponent(contentEl).setValue(this.file.name);
-    tc.inputEl.style.width = "100%";
+    tc.inputEl.addClass("pt-rename-modal-input");
     const row = contentEl.createDiv({ cls: "pt-rename-modal-actions" });
     new import_obsidian.ButtonComponent(row).setButtonText("Cancel").onClick(() => {
       this.close();
@@ -412,11 +447,6 @@ var PapertrailSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Papertrail" });
-    containerEl.createEl("p", {
-      cls: "setting-item-description",
-      text: "Notes in .obsidian and any path matched by Settings \u2192 Files & links \u2192 Excluded files are always omitted (same rules as Search and the file explorer)."
-    });
     new import_obsidian.Setting(containerEl).setName("Sort order").setDesc("How notes are ordered in the list.").addDropdown((dropdown) => {
       for (const { id, label } of SORT_ORDERS) {
         dropdown.addOption(id, label);
@@ -427,7 +457,7 @@ var PapertrailSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     });
     new import_obsidian.Setting(containerEl).setName("Hide excluded paths").setDesc(
-      "When on, omit notes whose path has a folder or file segment starting with a dot (hidden-style paths). Obsidian\u2019s Settings \u2192 Files & links \u2192 Excluded files list always applies on its own; this toggle only adds that extra rule."
+      "When enabled, also hide notes whose path includes a folder or file starting with a dot."
     ).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.hideExcludedPaths).onChange(async (value) => {
         this.plugin.settings.hideExcludedPaths = value;
@@ -646,7 +676,6 @@ var PapertrailView = class extends import_obsidian.ItemView {
     });
     const searchRow = bar.createDiv({ cls: "pt-chrome-footer-search" });
     this._chromeSearchRow = searchRow;
-    searchRow.style.display = "none";
     const lead = searchRow.createDiv({ cls: "pt-chrome-search-lead" });
     (0, import_obsidian.setIcon)(lead, "search");
     const input = searchRow.createEl("input", {
@@ -683,9 +712,8 @@ var PapertrailView = class extends import_obsidian.ItemView {
   }
   enterSearchMode() {
     this._searchMode = true;
-    if (this._chromeDefaultRow && this._chromeSearchRow) {
-      this._chromeDefaultRow.style.display = "none";
-      this._chromeSearchRow.style.display = "";
+    if (this._chromeFooter instanceof HTMLElement) {
+      this._chromeFooter.classList.add("is-search-mode");
     }
     if (this._searchInput) {
       this._searchInput.value = this._searchQuery;
@@ -707,9 +735,8 @@ var PapertrailView = class extends import_obsidian.ItemView {
       this._searchBodyTimer = null;
     }
     if (this._searchInput) this._searchInput.value = "";
-    if (this._chromeDefaultRow && this._chromeSearchRow) {
-      this._chromeDefaultRow.style.display = "";
-      this._chromeSearchRow.style.display = "none";
+    if (this._chromeFooter instanceof HTMLElement) {
+      this._chromeFooter.classList.remove("is-search-mode");
     }
     this.refreshList();
   }
@@ -734,7 +761,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
    * @param {string} rawQuery
    * @param {number} gen
    */
-  async runSearchPipeline(rawQuery, gen) {
+  runSearchPipeline(rawQuery, gen) {
     if (!this.scrollEl || !this._searchMode) return;
     const files = this.plugin.collectMarkdownFiles();
     const qTrim = rawQuery.trim();
@@ -764,15 +791,15 @@ var PapertrailView = class extends import_obsidian.ItemView {
         tierA.push({
           file: f,
           score: scoreFromFuzzyIndices(ti),
-          titleHtml: highlightFuzzyInOriginal(f.basename, ti),
-          snippetHtml: null
+          titleSegments: highlightFuzzySegments(f.basename, ti),
+          snippetSegments: null
         });
       } else if (pi) {
         tierA.push({
           file: f,
           score: scoreFromFuzzyIndices(pi) - 120,
-          titleHtml: escapeHtml(f.basename),
-          snippetHtml: highlightFirstSubstringIC(f.path, qTrim)
+          titleSegments: [{ kind: "plain", text: f.basename }],
+          snippetSegments: highlightSubstringICSegments(f.path, qTrim)
         });
       }
     }
@@ -783,7 +810,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
    * @param {string} qTrim
    * @param {number} gen
    */
-  async runSearchBodyTier(qTrim, gen) {
+  runSearchBodyTier(qTrim, gen) {
     if (!this.scrollEl || !this._searchMode || gen !== this._searchGen) return;
     const qLower = qTrim.toLowerCase();
     const files = this.plugin.collectMarkdownFiles();
@@ -813,13 +840,13 @@ var PapertrailView = class extends import_obsidian.ItemView {
         void vault.cachedRead(f).then((raw) => {
           if (gen !== this._searchGen) return;
           const plain = plainTextForSearch(raw);
-          const hit = snippetAroundMatch(plain, qTrim);
+          const hit = snippetSegmentsAroundMatch(plain, qTrim);
           if (hit == null ? void 0 : hit.found) {
             tierB.push({
               file: f,
               score: f.stat.mtime,
-              titleHtml: escapeHtml(f.basename),
-              snippetHtml: hit.html
+              titleSegments: [{ kind: "plain", text: f.basename }],
+              snippetSegments: hit.segments
             });
           }
         }).catch(() => {
@@ -850,7 +877,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
     this.updateActiveRow();
   }
   /**
-   * @param {{ file: TFile; titleHtml: string; snippetHtml: string | null }[]} entries
+   * @param {{ file: TFile; titleSegments: HighlightSegment[]; snippetSegments: HighlightSegment[] | null }[]} entries
    * @param {number} gen
    */
   renderSearchRows(entries, gen) {
@@ -858,16 +885,16 @@ var PapertrailView = class extends import_obsidian.ItemView {
     this._excerptQueue.length = 0;
     this.scrollEl.empty();
     for (const ent of entries) {
-      this.createSearchRowEl(ent.file, ent.titleHtml, ent.snippetHtml);
+      this.createSearchRowEl(ent.file, ent.titleSegments, ent.snippetSegments);
     }
     this.updateActiveRow();
   }
   /**
    * @param {TFile} file
-   * @param {string} titleHtml
-   * @param {string | null} snippetHtml preset snippet or null to load excerpt
+   * @param {HighlightSegment[]} titleSegments
+   * @param {HighlightSegment[] | null} snippetSegments preset snippet or null to load excerpt
    */
-  createSearchRowEl(file, titleHtml, snippetHtml) {
+  createSearchRowEl(file, titleSegments, snippetSegments) {
     if (!this.scrollEl) throw new Error("scrollEl not ready");
     const wrap = this.scrollEl.createDiv({
       cls: "pt-item",
@@ -880,7 +907,8 @@ var PapertrailView = class extends import_obsidian.ItemView {
     const titleSlot = snippet.createSpan({
       cls: "pt-title-wrap pt-title-wrap--max-3"
     });
-    titleSlot.innerHTML = '<span class="pt-title">' + titleHtml + "</span>";
+    const titleSpan = titleSlot.createSpan({ cls: "pt-title" });
+    applyHighlightSegmentsTo(titleSpan, titleSegments);
     const subtitle = snippet.createSpan({ cls: "pt-excerpt" });
     const meta = row.createDiv({ cls: "pt-meta" });
     meta.createDiv({
@@ -889,8 +917,8 @@ var PapertrailView = class extends import_obsidian.ItemView {
     });
     const bottom = card.createDiv({ cls: "pt-footer" });
     bottom.createDiv({ cls: "pt-footer-sep" });
-    if (snippetHtml !== null) {
-      subtitle.innerHTML = snippetHtml;
+    if (snippetSegments !== null) {
+      applyHighlightSegmentsTo(subtitle, snippetSegments);
       subtitle.classList.toggle("pt-excerpt--empty", false);
       subtitle.classList.add("pt-excerpt--budget-2");
       schedulePapertrailSnippetBudget(snippet);
@@ -934,7 +962,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
     if (qi < 0) {
       el.setText(t);
     } else {
-      el.innerHTML = highlightFirstSubstringIC(t, qTrim);
+      applyHighlightSegmentsTo(el, highlightSubstringICSegments(t, qTrim));
     }
     el.classList.toggle("pt-excerpt--empty", !t);
     if (t) {
@@ -1051,24 +1079,9 @@ var PapertrailView = class extends import_obsidian.ItemView {
     }
     this.updateActiveRow();
   }
-  async onOpen() {
+  onOpen() {
     this.contentEl.empty();
     this.contentEl.addClass("pt-root");
-    const parent = this.contentEl.parentElement;
-    if (parent instanceof HTMLElement) {
-      parent.style.display = "flex";
-      parent.style.flexDirection = "column";
-      parent.style.flex = "1 1 auto";
-      parent.style.minHeight = "0";
-      parent.style.minWidth = "0";
-      parent.style.overflow = "hidden";
-    }
-    this.contentEl.style.display = "flex";
-    this.contentEl.style.flexDirection = "column";
-    this.contentEl.style.flex = "1 1 auto";
-    this.contentEl.style.minHeight = "0";
-    this.contentEl.style.minWidth = "0";
-    this.contentEl.style.height = "100%";
     this.registerDomEvent(this.contentEl, "click", (e) => this.onRootClick(e));
     this.registerDomEvent(
       this.contentEl,
@@ -1076,23 +1089,16 @@ var PapertrailView = class extends import_obsidian.ItemView {
       (e) => this.onRootContextMenu(e)
     );
     this.scrollEl = this.contentEl.createDiv({ cls: "pt-scroll" });
-    this.scrollEl.style.flex = "1 1 auto";
-    this.scrollEl.style.minHeight = "0";
-    this.scrollEl.style.minWidth = "0";
-    this.scrollEl.style.overflowY = "auto";
-    this.scrollEl.style.overflowX = "hidden";
     this.buildChromeFooter();
-    if (this._chromeFooter instanceof HTMLElement) {
-      this._chromeFooter.style.flexShrink = "0";
-    }
     this.registerViewEvents();
     this.refreshList();
     this.queueScrollActiveIntoView();
     if (this.plugin.app.workspace.getActiveLeaf() === this.leaf) {
       this.triggerChromeTitleTabTransition();
     }
+    return Promise.resolve();
   }
-  async onClose() {
+  onClose() {
     if (this._debounceTimer != null) {
       window.clearTimeout(this._debounceTimer);
       this._debounceTimer = null;
@@ -1110,6 +1116,7 @@ var PapertrailView = class extends import_obsidian.ItemView {
     this._chromeSearchRow = null;
     this._chromeTitleEl = null;
     this._searchInput = null;
+    return Promise.resolve();
   }
 };
 var PapertrailPlugin = class extends import_obsidian.Plugin {
@@ -1152,7 +1159,8 @@ var PapertrailPlugin = class extends import_obsidian.Plugin {
    * @param {string[]} [userIgnoreFilters] from one getConfig() call; omit to fetch (legacy path only)
    */
   shouldExcludePath(normPath, hideExcludedPaths, userIgnoreFilters) {
-    if (normPath.startsWith(".obsidian/")) return true;
+    const configDir = this.app.vault.configDir;
+    if (configDir && normPath.startsWith(configDir + "/")) return true;
     if (hideExcludedPaths && pathHasDotSegment(normPath)) return true;
     try {
       const mc = this.app.metadataCache;
@@ -1272,7 +1280,7 @@ var PapertrailPlugin = class extends import_obsidian.Plugin {
     const existing = workspace.getLeavesOfType(VIEW_TYPE);
     if (existing.length > 0) {
       const leaf2 = existing[0];
-      workspace.revealLeaf(leaf2);
+      await workspace.revealLeaf(leaf2);
       workspace.setActiveLeaf(leaf2, { focus: true });
       return;
     }
@@ -1283,7 +1291,7 @@ var PapertrailPlugin = class extends import_obsidian.Plugin {
       if (!leaf) leaf = workspace.getLeaf("tab");
     }
     await leaf.setViewState({ type: VIEW_TYPE, active: true });
-    workspace.revealLeaf(leaf);
+    await workspace.revealLeaf(leaf);
     workspace.setActiveLeaf(leaf, { focus: true });
   }
   async onload() {
@@ -1291,25 +1299,23 @@ var PapertrailPlugin = class extends import_obsidian.Plugin {
     this.addSettingTab(new PapertrailSettingTab(this.app, this));
     this.registerView(VIEW_TYPE, (leaf) => new PapertrailView(leaf, this));
     this.addCommand({
-      id: "open-papertrail",
-      name: "Open Papertrail",
+      id: "open-list",
+      name: "Open list",
       icon: PLUGIN_ICON,
       callback: () => {
         void this.activateView();
       }
     });
     this.addCommand({
-      id: "papertrail-list-next",
-      name: "Papertrail: Open next note in list",
-      hotkeys: [{ modifiers: ["Mod"], key: "ArrowDown" }],
+      id: "open-next-note",
+      name: "Open next note in list",
       callback: () => {
         this.navigatePapertrailList(1);
       }
     });
     this.addCommand({
-      id: "papertrail-list-prev",
-      name: "Papertrail: Open previous note in list",
-      hotkeys: [{ modifiers: ["Mod"], key: "ArrowUp" }],
+      id: "open-previous-note",
+      name: "Open previous note in list",
       callback: () => {
         this.navigatePapertrailList(-1);
       }

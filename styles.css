@@ -8,7 +8,7 @@
   min-width: 0;
   padding: 0;
   overflow: hidden;
-  --pt-row-margin-inline: 0.57em;
+  --pt-row-margin-inline: 0.9em;
   --pt-card-height: 104px;
   --pt-bg: var(--background-primary);
   --pt-bg-hover: var(--background-modifier-hover);
@@ -29,11 +29,11 @@
   --pt-title-size: calc(
     var(--font-ui-medium, 15px) * var(--pt-font-scale)
   );
-  --pt-title-weight: 600;
+  --pt-title-weight: 700;
   --pt-title-lh: 1.28;
   --pt-title-tracking: normal;
   --pt-title-color: color-mix(in srgb, var(--text-normal) 76%, var(--background-primary));
-  --pt-excerpt-size: 1em;
+  --pt-excerpt-size: var(--pt-title-size);
   --pt-excerpt-weight: 400;
   --pt-excerpt-lh: 1.45;
   --pt-excerpt-color: color-mix(in srgb, var(--text-muted) 68%, var(--background-primary));
@@ -169,13 +169,26 @@
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-chrome-footer-search {
-  display: flex;
+  display: none;
   flex-direction: row;
   align-items: center;
   gap: 0.35em;
   min-height: 2rem;
   min-width: 0;
   width: 100%;
+}
+
+/* Toggle which row is shown via state class on the footer container. */
+.workspace-leaf-content[data-type="papertrail"]
+  .pt-chrome-footer.is-search-mode
+  .pt-chrome-footer-default {
+  display: none;
+}
+
+.workspace-leaf-content[data-type="papertrail"]
+  .pt-chrome-footer.is-search-mode
+  .pt-chrome-footer-search {
+  display: flex;
 }
 
 .workspace-leaf-content[data-type="papertrail"] .pt-chrome-search-lead {
@@ -233,6 +246,11 @@
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+/* Rename modal input fills the modal width (replaces inline style). */
+.modal .pt-rename-modal-input {
+  width: 100%;
 }
 
 /* List row: fixed height; grid card pins meta (date) to bottom of .pt-row */
