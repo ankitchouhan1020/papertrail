@@ -140,6 +140,23 @@ var MONTH_ABBR = [
   "Dec"
 ];
 function formatListCardDate(mtime) {
+  const diff = Math.max(0, Date.now() - mtime);
+  const MIN = 6e4;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+  if (diff < MIN) return "Just now";
+  if (diff < HOUR) {
+    const m = Math.floor(diff / MIN);
+    return `${m}\xA0${m === 1 ? "minute" : "minutes"} ago`;
+  }
+  if (diff < DAY) {
+    const h = Math.floor(diff / HOUR);
+    return `${h}\xA0${h === 1 ? "hour" : "hours"} ago`;
+  }
+  if (diff < 7 * DAY) {
+    const d2 = Math.floor(diff / DAY);
+    return d2 === 1 ? "Yesterday" : `${d2}\xA0days ago`;
+  }
   const d = new Date(mtime);
   return `${d.getDate()}\xA0${MONTH_ABBR[d.getMonth()]}\xA0${d.getFullYear()}`;
 }
@@ -540,6 +557,26 @@ var PapertrailView = class extends import_obsidian.ItemView {
         bump();
       })
     );
+  }
+  /**
+   * Refresh just the .pt-date cells so relative labels ("5 min ago") don't
+   * go stale between vault events. Runs on a 60s tick — DOM rebuild is
+   * unnecessary since we only need to re-stringify the timestamp.
+   */
+  tickRelativeDates() {
+    if (!this.scrollEl) return;
+    const rows = this.scrollEl.querySelectorAll(".pt-item[data-path]");
+    for (const row of rows) {
+      if (!(row instanceof HTMLElement)) continue;
+      const path = row.dataset.path;
+      if (!path) continue;
+      const file = this.plugin.app.vault.getAbstractFileByPath(path);
+      if (!(file instanceof import_obsidian.TFile)) continue;
+      const dateEl = row.querySelector(".pt-date");
+      if (dateEl instanceof HTMLElement) {
+        dateEl.setText(formatListCardDate(file.stat.mtime));
+      }
+    }
   }
   /** @param {MouseEvent} e */
   onRootClick(e) {
@@ -1091,6 +1128,9 @@ var PapertrailView = class extends import_obsidian.ItemView {
     this.scrollEl = this.contentEl.createDiv({ cls: "pt-scroll" });
     this.buildChromeFooter();
     this.registerViewEvents();
+    this.registerInterval(
+      window.setInterval(() => this.tickRelativeDates(), 6e4)
+    );
     this.refreshList();
     this.queueScrollActiveIntoView();
     if (this.plugin.app.workspace.getActiveLeaf() === this.leaf) {

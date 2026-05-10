@@ -160,8 +160,31 @@ const MONTH_ABBR = [
   "Dec",
 ];
 
-/** List row date: "9 May 2026" style. */
+/**
+ * List row date.
+ * Recent edits → relative ("just now", "5 min ago", "2 hr ago", "yesterday",
+ * "3 days ago"); anything ≥ 7 days old falls back to "9 May 2026".
+ */
 function formatListCardDate(mtime) {
+  const diff = Math.max(0, Date.now() - mtime);
+  const MIN = 60_000;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+
+  if (diff < MIN) return "Just now";
+  if (diff < HOUR) {
+    const m = Math.floor(diff / MIN);
+    return `${m}\u00a0${m === 1 ? "minute" : "minutes"} ago`;
+  }
+  if (diff < DAY) {
+    const h = Math.floor(diff / HOUR);
+    return `${h}\u00a0${h === 1 ? "hour" : "hours"} ago`;
+  }
+  if (diff < 7 * DAY) {
+    const d = Math.floor(diff / DAY);
+    return d === 1 ? "Yesterday" : `${d}\u00a0days ago`;
+  }
+
   const d = new Date(mtime);
   return `${d.getDate()}\u00a0${MONTH_ABBR[d.getMonth()]}\u00a0${d.getFullYear()}`;
 }
@@ -682,6 +705,27 @@ class PapertrailView extends ItemView {
         bump();
       })
     );
+  }
+
+  /**
+   * Refresh just the .pt-date cells so relative labels ("5 min ago") don't
+   * go stale between vault events. Runs on a 60s tick — DOM rebuild is
+   * unnecessary since we only need to re-stringify the timestamp.
+   */
+  tickRelativeDates() {
+    if (!this.scrollEl) return;
+    const rows = this.scrollEl.querySelectorAll(".pt-item[data-path]");
+    for (const row of rows) {
+      if (!(row instanceof HTMLElement)) continue;
+      const path = row.dataset.path;
+      if (!path) continue;
+      const file = this.plugin.app.vault.getAbstractFileByPath(path);
+      if (!(file instanceof TFile)) continue;
+      const dateEl = row.querySelector(".pt-date");
+      if (dateEl instanceof HTMLElement) {
+        dateEl.setText(formatListCardDate(file.stat.mtime));
+      }
+    }
   }
 
   /** @param {MouseEvent} e */
@@ -1297,6 +1341,9 @@ class PapertrailView extends ItemView {
     this.scrollEl = this.contentEl.createDiv({ cls: "pt-scroll" });
     this.buildChromeFooter();
     this.registerViewEvents();
+    this.registerInterval(
+      window.setInterval(() => this.tickRelativeDates(), 60_000)
+    );
     this.refreshList();
     this.queueScrollActiveIntoView();
     if (this.plugin.app.workspace.getActiveLeaf() === this.leaf) {
