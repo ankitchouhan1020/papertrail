@@ -1,6 +1,6 @@
 {
   "name": "papertrail",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Sidebar list of all markdown notes for Obsidian",
   "main": "main.js",
   "type": "module",
